@@ -309,17 +309,6 @@ if __name__ == "__main__":
     # getVFData()
     # data_vis()
     extra_VFdata()
-    # _, duration = getCUDB()
-    # # 绘制直方图
-    # plt.hist(duration, bins=30, color='skyblue', alpha=0.8)
-    #
-    # # 设置图表属性
-    # plt.title('duration')
-    # plt.xlabel('duration ')
-    # plt.ylabel('num')
-    #
-    # # 显示图表
-    # plt.show()
     data_vf_train = np.load(save_path + "VF_all_data.npy", allow_pickle=True).item()["trainData"].keys()
     data_vf_test = np.load(save_path + "VF_all_data.npy", allow_pickle=True).item()["testData"].keys()
 

@@ -256,13 +256,8 @@ class MAE_linearmask(nn.Module):
         # print(vq_loss)
         # print(self.calculate_cos_loss(recons, input))
         recons_loss = nn.MSELoss()(pred, input)
-        cos_sim_loss = self.calculate_cos_loss(pred, input)
-
-        loss = recons_loss + cos_sim_loss
-        return {'loss': loss,
-                'Reconstruction_Loss': recons_loss,
-                'Cos_sim_Loss': cos_sim_loss,
-                }
+        loss = recons_loss
+        return {'loss': loss, }
 
     def calculate_cos_loss(self, rec, target):
         # 计算每一个片段的cos sim
@@ -272,45 +267,6 @@ class MAE_linearmask(nn.Module):
 
         return rec_loss
 
-    def reconstruction(self, signal):
-        device = signal.device
-        # get patches
-        patches = self.to_patch(signal)
-        batch, num_patches, *_ = patches.shape
-        all_indices = torch.arange(num_patches + 1, device=device).repeat(batch, 1)
-        batch_range = torch.arange(batch, device=device)[:, None]
-        # random mask
-        tokens = self.patch_to_emb(patches)
-        tokens = tokens + self.encoder.pos_embedding[:, 1:(num_patches + 1)]
-        x, mask, ids_restore, ids_mask, ids_keep = self.random_masking(tokens, self.masking_ratio)
-        cls_token = self.cls_token + self.encoder.pos_embedding[:, :1, :]
-        cls_tokens = cls_token.expand(x.shape[0], -1, -1)
-        x = torch.cat((cls_tokens, x), dim=1)
-        encoded_tokens = self.encoder.transformer(x)
-
-        # encoded_tokens = all_encoded_tokens[-1]
-
-        x = self.enc_to_dec(encoded_tokens)
-
-        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
-        x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
-        x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
-        x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
-        # reapply decoder position embedding to unmasked tokens
-
-        decoder_tokens = x + self.decoder_pos_emb(all_indices)
-
-        decoded_tokens = self.decoder(decoder_tokens)
-        # decoded_tokens = all_decoded_tokens[-1]
-        decoded_tokens = decoded_tokens[:, 1:, :]
-        # splice out the mask tokens and project to pixel values
-
-        masked_indices = ids_mask
-        unmasked_indices = ids_keep
-        mask_tokens = decoded_tokens[batch_range, masked_indices]
-        pred_pixel_values = self.to_pixels(decoded_tokens)
-
-        return pred_pixel_values.view(batch, -1)
 
     def getEmbeding(self, signal):
 
@@ -376,13 +332,7 @@ class MAE_linearmask(nn.Module):
         if self.pre_train == 'train':
             return self.loss_function(pred_pixel_values_masked, masked_patches), \
                    self.loss_function(pred_pixel_values_unmasked, unmasked_patches)
-        else:
-            mask_loss = self.loss_function(pred_pixel_values_masked, masked_patches)
-            unmask_loss = self.loss_function(pred_pixel_values_unmasked, unmasked_patches)
-            return {"Reconstruction_Loss": mask_loss["Reconstruction_Loss"] + unmask_loss["Reconstruction_Loss"],
-                    "Cos_sim_Loss": mask_loss["Cos_sim_Loss"] + unmask_loss["Cos_sim_Loss"],
-                    "mask_Cos_sim_Loss": mask_loss["Cos_sim_Loss"],
-                    "mask_Reconstruction_Loss": mask_loss["Reconstruction_Loss"]}
+
 
 
 

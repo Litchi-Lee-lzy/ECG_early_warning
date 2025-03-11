@@ -170,7 +170,6 @@ if __name__ == "__main__":
         optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=1e-8)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.max_epoch, eta_min=config.min_lr)
 
-
         val_loss = []
         train_loss = []
         best_performance = 100000
@@ -183,18 +182,13 @@ if __name__ == "__main__":
                 optimizer.zero_grad()
                 ecg = data_source.type(torch.FloatTensor)
                 ecg = ecg.to(DEVICE)
-
                 masked_loss, unmasked_loss = model(ecg)
-
                 loss = 0.7 * masked_loss["loss"] + 0.3 * unmasked_loss["loss"]
-
                 loss.backward()
                 optimizer.step()
                 total_loss_train += loss.item()
-
                 loop.set_description(f'Epoch [{epoch}/{config.max_epoch}]')
-                loop.set_postfix(masked_loss=masked_loss["loss"].item(), unmasked_loss=unmasked_loss["loss"].item(),
-                                 masked_rec_loss=masked_loss["Reconstruction_Loss"].item())
+                loop.set_postfix(masked_loss=masked_loss["loss"].item())
             scheduler.step()
             loss_train = total_loss_train / len_dataloader
             print('Training set:')
@@ -204,24 +198,19 @@ if __name__ == "__main__":
 
             pred_loss = 0
             with torch.no_grad():
-
                 for _, ecg in enumerate(dataloader_test):
                     ecg = ecg.type(torch.FloatTensor).to(DEVICE)
                     loss, _ = model(ecg)
                     pred_loss += loss["loss"].item()
             pred_loss = pred_loss / len(dataloader_test)
 
-
-
             val_loss.append(pred_loss)
-
 
             if pred_loss < best_performance:
                 best_performance = pred_loss
                 print('best_performance: {:.4f}'.format(best_performance))
                 if not os.path.exists(config.output_dir):
                     os.makedirs(config.output_dir)
-
                 torch.save(model.state_dict(),
                            config.output_dir + f"mask_unmask_model_{epoch}.pth")
                 # with torch.no_grad():
@@ -238,36 +227,3 @@ if __name__ == "__main__":
         plt.plot(train_loss, "r")
         plt.plot(val_loss, "b")
         plt.show()
-
-    elif flag == 1:
-        DEVICE = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
-        # 载入数据集
-        # trainData, testData = getPretrainData()
-        #
-        # dataloader_test = DataLoader(maeDataset(testData), batch_size=32, shuffle=False)
-
-        model = MAE_linearmask(pre_train="train").to(DEVICE)
-        n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print('number of params: {} M'.format(n_parameters / 1e6))
-        model.load_state_dict(
-            torch.load(config.output_dir + f"mask_unmask_model_{100}.pth", map_location=DEVICE))
-        model.eval()
-        with torch.no_grad():
-            model.plot = True
-            # for _, ecg in enumerate(dataloader_test):
-            #     for i in range(1):
-            #         sig = ecg[i].reshape(1, 1280).type(torch.FloatTensor).to(DEVICE)
-            #         patches, pred_pixel_values, masked_indices = model(sig)
-            #         plot_maskECG(ecg[i], patches, pred_pixel_values, masked_indices)
-            #     break
-            dataset_dir = "/media/lzy/Elements SE/early_warning/VF_data/"
-            file_data = np.load(dataset_dir + "VF_all_data.npy", allow_pickle=True).item()["trainData"]
-            for j, file_name in enumerate(tqdm.tqdm(list(file_data.keys()))):
-                data_ = np.array(file_data[file_name]["X"])
-
-                data_ = torch.from_numpy(data_).type(torch.FloatTensor).to(DEVICE)
-                for i in [1,2,-2,-1]:
-                    sig = data_[i].reshape(1, 1280).type(torch.FloatTensor).to(DEVICE)
-                    patches, pred_pixel_values, masked_indices = model(sig)
-                    plot_maskECG(data_[i], patches, pred_pixel_values, masked_indices)
-                break

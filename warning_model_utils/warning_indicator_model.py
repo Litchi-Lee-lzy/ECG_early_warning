@@ -89,12 +89,14 @@ class indicator_cls_model(nn.Module):
         tokens = self.patch_to_emb(patches)
         tokens = tokens + self.encoder.pos_embedding[:, 1:(num_patches + 1)]
         # x, mask, ids_restore, ids_mask, ids_keep = self.random_masking(tokens, self.masking_ratio)
-        cls_token = self.cls_token + self.encoder.pos_embedding[:, :1, :]
-        cls_tokens = cls_token.expand(tokens.shape[0], -1, -1)
-        x = torch.cat((cls_tokens, tokens), dim=1)
-        encoded_tokens = self.encoder.transformer(x)[:, 1:, :]
-
-        return encoded_tokens
+        # cls_token = self.cls_token + self.encoder.pos_embedding[:, :1, :]
+        # cls_tokens = cls_token.expand(tokens.shape[0], -1, -1)
+        # x = torch.cat((cls_tokens, tokens), dim=1)
+        encoded_tokens = self.encoder.transformer(tokens)[:, 1:, :]
+        lstm_output, (final_hidden_state, final_cell_state) = self.rnn(encoded_tokens)
+        latentFeature = self.avgpool(lstm_output.permute(0, 2, 1))
+        latentFeature = latentFeature.view(latentFeature.size(0), -1)
+        return latentFeature
 
     def forward(self, signal):
         patches = self.to_patch(signal)
