@@ -352,7 +352,7 @@ def findOrTestThreshold(pred_val, true_val, onset_time, threshold_value=None):
     acc_list = []
     forahead_time = []
     if threshold_value is None:
-        threshold_list = np.arange(0.05, 1., 0.02)
+        threshold_list = np.arange(0.00, 1., 0.02)
     else:
         threshold_list = [threshold_value]
     for threshold in threshold_list:
@@ -428,11 +428,6 @@ def findOrTestThreshold(pred_val, true_val, onset_time, threshold_value=None):
 
 def getWarningRisk(model, status_dis, status, label, file_name = None):
     end_id = len(label)
-    # end_ids = np.where(label==4)[0]
-    # if len(end_ids) == 0:
-    #     end_id = len(label) - 1
-    # else:
-    #     end_id = end_ids[0]
 
     risk_value = []
     label_true = []
@@ -534,7 +529,7 @@ def testWarning(model):
         status_dis_patient = []
         label_patient = []
         for sta, sta_dis, la, in zip(data_status, data_status_dis, label_ori):
-            # if q == 0:
+
                 status_patient.append(sta)
                 status_dis_patient.append(sta_dis)
                 if "non" in test_patient:
@@ -578,11 +573,11 @@ def data_visualization(indicator, label):
 
 if __name__ == "__main__":
     # 仅调用一次
-    indicator_extraction()
+    # indicator_extraction()
 
     DEVICE = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     vf_model_save_path = "/media/lzy/Elements SE/early_warning/VF_model/"
-    finetune_epoch = 20
+    finetune_epoch = 50
     flag = 1 # 0 warning training 2 testing
 
     if flag == 0:
@@ -591,7 +586,7 @@ if __name__ == "__main__":
         # dataloader_val = DataLoader(warningDataset(), batch_size=32, shuffle=True)
         model = warningLSTM().to(DEVICE)
 
-        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=finetune_epoch, eta_min=1e-5)
 
         val_loss = []
